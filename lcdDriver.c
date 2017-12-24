@@ -10,6 +10,7 @@
 #include <fcntl.h>				//Needed for I2C port
 #include <sys/ioctl.h>			//Needed for I2C port
 #include <linux/i2c-dev.h>		//Needed for I2C port
+#include "lcdDriver.h"
 
 // Define some device parameters
 #define I2C_ADDR 0x3f // I2C device address
@@ -90,7 +91,7 @@ void readI2c()
 {
 	//----- READ BYTES -----
   unsigned char buffer[60] = {0};
-	length = 4;			//<<< Number of bytes to read
+	int length = 4;			//<<< Number of bytes to read
 	if (read(file_i2c, buffer, length) != length)		//read() returns the number of bytes actually read
 	{
 		printf("readI2c Failed to read from the i2c bus.\n");
