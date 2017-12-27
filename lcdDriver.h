@@ -5,5 +5,5 @@ void lcdToggleEnable(unsigned char bits);
 void lcdByte(unsigned char bits, unsigned char mode);
 void lcdInit();
 void lcdSendCommand(unsigned char command);
-void lcdString(char * message, unsigned char line);
+void lcdString(char * message);
 int main(int argc, char *argv[]);
