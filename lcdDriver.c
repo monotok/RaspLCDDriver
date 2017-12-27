@@ -21,9 +21,17 @@
 #define LCD_CMD 0 // Mode - Sending command
 
 #define LCD_BEG_LINE_1 0x80 // LCD RAM address for the 1st line
+#define LCD_END_LINE_1 0x93 // LCD RAM address for the 1st line
+
 #define LCD_BEG_LINE_2 0xC0 // LCD RAM address for the 2nd line
+#define LCD_END_LINE_2 0xD3 // LCD RAM address for the 2nd line
+
 #define LCD_BEG_LINE_3 0x94 // LCD RAM address for the 3rd line
+#define LCD_END_LINE_3 0xA7 // LCD RAM address for the 3rd line
+
 #define LCD_BEG_LINE_4 0xD4 // LCD RAM address for the 4th line
+#define LCD_END_LINE_4 0xE7 // LCD RAM address for the 4th line
+
 
 //LCD Available Commands
 #define LCD_BLINK 0x0F
@@ -149,13 +157,16 @@ void lcdByte(unsigned char bits, unsigned char mode)
   lcdToggleEnable(bits_low);
 }
 
-// void lcdInit()
-// {
-//   lcdByte(0x33,LCD_CMD); // 110011 Initialise
-//   lcdByte(0x32,LCD_CMD); // 110010 Initialise
-//   lcdByte(0x28,LCD_CMD); // 101000 Data length, number of lines, font size
-//   usleep(E_DELAY);
-// }
+void lcdInit()
+{
+  lcdByte(0x33,LCD_CMD); // 110011 Initialise
+  lcdByte(0x32,LCD_CMD); // 110010 Initialise
+  lcdSendCommand(LCD_UNDERLINE_CURSOR);
+  lcdSendCommand(LCD_CLEAR_DISPLAY_CLEAR_MEM);
+  lcdSendCommand(LCD_ENTRY_MODE);
+  lcdSendCommand(LCD_SET_4BIT_2LINE);
+  usleep(E_DELAY);
+}
 
 void lcdSendCommand(unsigned char command)
 {
@@ -170,18 +181,53 @@ void lcdString(char * message)
   }
 }
 
+void convertHexPosRowCol(unsigned char hexPosition)
+{
+  int row, col;
+  switch(hexPosition)
+  {
+    case LCD_BEG_LINE_1:
+      row = 0;
+      col = 1;
+      break;
+  }
+}
+
+void clearColumns(unsigned char positionToClearTo, unsigned char positionToClearFrom)
+{
+  int remainingColsHex = positionToClearTo - positionToClearFrom;
+  setCursorPosition(positionToClearFrom);
+
+  for(int i = 0; i <= remainingColsHex; i++)
+  {
+    lcdString(" ");
+  }
+}
+
+void clearLine(int lineNo)
+{
+  switch(lineNo)
+  {
+    case 1:
+      clearColumns(LCD_END_LINE_1,LCD_BEG_LINE_1);  
+      break;
+    case 2:
+      clearColumns(LCD_END_LINE_2,LCD_BEG_LINE_2);  
+      break;
+    case 3:
+      clearColumns(LCD_END_LINE_3,LCD_BEG_LINE_3);  
+      break;
+    default:
+      clearColumns(LCD_END_LINE_4,LCD_BEG_LINE_4);      
+  }
+}
+
 int main(int argc, char *argv[])
 {
     //initialise i2c
     initI2c();
     //Initialise display
-    // lcdInit();
-
-    lcdSendCommand(LCD_UNDERLINE_CURSOR);
-    lcdSendCommand(LCD_CLEAR_DISPLAY_CLEAR_MEM);
-    lcdSendCommand(LCD_ENTRY_MODE);
-    lcdSendCommand(LCD_SET_4BIT_2LINE);
-    usleep(E_DELAY);
+    lcdInit();
 
     lcdSendCommand(LCD_BEG_LINE_1);
     lcdString("Sensor ID:");
@@ -199,7 +245,7 @@ int main(int argc, char *argv[])
     lcdString("Humidity: ");
 
     setCursorPosition(0x9e);
-    lcdString("70%");
+    lcdString("75%");
 
     setCursorPosition(LCD_BEG_LINE_4);
     lcdString("Battery: ");
@@ -207,7 +253,22 @@ int main(int argc, char *argv[])
     setCursorPosition(0xde);
     // lcdString("         ");
     // setCursorPosition(0xde);    
-    lcdString("52%");
+    lcdString("1000%");
+    clearColumns(LCD_END_LINE_4,0xde);
+
+    setCursorPosition(0xde);
+    // lcdString("         ");
+    // setCursorPosition(0xde);    
+    lcdString("32%");
+
+    setCursorPosition(LCD_END_LINE_1-1);
+    lcdString("BB");
+    setCursorPosition(LCD_END_LINE_2-1);
+    lcdString("BB");
+    setCursorPosition(LCD_END_LINE_3-1);
+    lcdString("BB");
+    setCursorPosition(LCD_END_LINE_4-1);
+    lcdString("BB");
 
     return 0;
 }
