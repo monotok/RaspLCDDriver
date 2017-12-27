@@ -1,6 +1,6 @@
 /***************************************
-* Maurices quick port of LCD_I2C.PY to C
-* 03/05/16
+* Chris Hamer's C Driver for LCD i2c device
+* 30/12/17
 ****************************************/
 
 #include <stdio.h>
@@ -11,6 +11,7 @@
 #include <sys/ioctl.h>			//Needed for I2C port
 #include <linux/i2c-dev.h>		//Needed for I2C port
 #include "lcdDriver.h"
+#include <errno.h>
 
 // Define some device parameters
 #define I2C_ADDR 0x3f // I2C device address
@@ -76,8 +77,7 @@ void moveCursorLeft() {  lcdSendCommand(LCD_MOVE_CURSOR_LEFT); }
 void resetCursorPosition() {  lcdSendCommand(LCD_RESET_CURSOR_POSITION); }
 void scroll1CharRightAllLines() {  lcdSendCommand(LCD_SCROLL_1_CHAR_RIGHT_ALL_LINES); }
 void scroll1CharLeftAllLines() {  lcdSendCommand(LCD_SCROLL_1_CHAR_LEFT_ALL_LINES); }
-void setCursorPosition(unsigned char position) {  lcdSendCommand(position); }
-
+void setCursorPositionHex(unsigned char position) {  lcdSendCommand(position); }
 
 
 
@@ -87,14 +87,14 @@ void initI2c()
 	char *filename = (char*)"/dev/i2c-1";
 	if ((file_i2c = open(filename, O_RDWR)) < 0)
 	{
-		printf("Failed to open the i2c bus");
+		error("Failed to open the i2c bus");
 		exit(1);
 	}
 
 	int addr = I2C_ADDR;
 	if (ioctl(file_i2c, I2C_SLAVE, addr) < 0)
 	{
-		printf("Failed to acquire bus access and/or talk to slave.\n");
+		error("Failed to acquire bus access and/or talk to slave.\n");
 		exit(1);
 	}
 }
@@ -106,7 +106,7 @@ void readI2c()
 	int length = 4;			//<<< Number of bytes to read
 	if (read(file_i2c, buffer, length) != length)		//read() returns the number of bytes actually read
 	{
-		printf("readI2c Failed to read from the i2c bus.\n");
+		error("readI2c Failed to read from the i2c bus.\n");
 	}
 	else
 	{
@@ -122,7 +122,7 @@ void writeByte(unsigned char address, unsigned char byte)
 	int length = 1;			//<<< Number of bytes to write
 	if (write(file_i2c, buffer, length) != length)		//write() returns the number of bytes actually written
 	{
-		printf("write_i2c Failed to write to the i2c bus.\n");
+		error("write_i2c Failed to write to the i2c bus.\n");
 	}
 }
 
@@ -168,6 +168,36 @@ void lcdInit()
   usleep(E_DELAY);
 }
 
+void setCursorPositionRowCol(int row, int col) 
+{
+  lcdSendCommand(convertRowColtoHex(row, col));
+}
+
+unsigned char convertRowColtoHex(int row, int col) 
+{
+  unsigned char currentLineHex;
+  switch(row)
+  {
+    case 1:
+      currentLineHex = LCD_BEG_LINE_1;
+      break;
+    case 2:
+      currentLineHex = LCD_BEG_LINE_2;
+      break;
+    case 3:
+      currentLineHex = LCD_BEG_LINE_3;
+      break;
+    case 4:
+      currentLineHex = LCD_BEG_LINE_4;
+      break;
+    default:
+      error("No such position!");
+  }
+
+  return (currentLineHex+(col));
+}
+
+
 void lcdSendCommand(unsigned char command)
 {
   lcdByte(command, LCD_CMD);
@@ -181,27 +211,22 @@ void lcdString(char * message)
   }
 }
 
-void convertHexPosRowCol(unsigned char hexPosition)
+void clearColumnsHex(unsigned char positionToClearTo, unsigned char positionToClearFrom)
 {
-  int row, col;
-  switch(hexPosition)
-  {
-    case LCD_BEG_LINE_1:
-      row = 0;
-      col = 1;
-      break;
-  }
-}
+  int numberOfColsToClear = positionToClearTo - positionToClearFrom;
+  setCursorPositionHex(positionToClearFrom);
 
-void clearColumns(unsigned char positionToClearTo, unsigned char positionToClearFrom)
-{
-  int remainingColsHex = positionToClearTo - positionToClearFrom;
-  setCursorPosition(positionToClearFrom);
-
-  for(int i = 0; i <= remainingColsHex; i++)
+  for(int i = 0; i <= numberOfColsToClear; i++)
   {
     lcdString(" ");
   }
+}
+
+void clearColumnsRowCol(int row, int colToClearTo, int colToClearFrom)
+{
+  unsigned char positionToClearTo = convertRowColtoHex(row, colToClearTo);
+  unsigned char positionToClearFrom = convertRowColtoHex(row, colToClearFrom);
+  clearColumnsHex(positionToClearTo, positionToClearFrom);
 }
 
 void clearLine(int lineNo)
@@ -209,18 +234,28 @@ void clearLine(int lineNo)
   switch(lineNo)
   {
     case 1:
-      clearColumns(LCD_END_LINE_1,LCD_BEG_LINE_1);  
+      clearColumnsHex(LCD_END_LINE_1,LCD_BEG_LINE_1);  
       break;
     case 2:
-      clearColumns(LCD_END_LINE_2,LCD_BEG_LINE_2);  
+      clearColumnsHex(LCD_END_LINE_2,LCD_BEG_LINE_2);  
       break;
     case 3:
-      clearColumns(LCD_END_LINE_3,LCD_BEG_LINE_3);  
+      clearColumnsHex(LCD_END_LINE_3,LCD_BEG_LINE_3);  
+      break;
+    case 4:
+      clearColumnsHex(LCD_END_LINE_3,LCD_BEG_LINE_3);  
       break;
     default:
-      clearColumns(LCD_END_LINE_4,LCD_BEG_LINE_4);      
+      error("No such line to clear!");
   }
 }
+
+void error(char *msg)
+{
+	fprintf(stderr, "%s: %s\n", msg, strerror(errno));
+	exit(1);
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -232,43 +267,42 @@ int main(int argc, char *argv[])
     lcdSendCommand(LCD_BEG_LINE_1);
     lcdString("Sensor ID:");
 
-    setCursorPosition(0x8b);
+    setCursorPositionHex(0x8b);
     lcdString("Here");
 
-    setCursorPosition(LCD_BEG_LINE_2);
+    setCursorPositionHex(LCD_BEG_LINE_2);
     lcdString("Temp: ");
 
-    setCursorPosition(0xc6);
+    setCursorPositionHex(0xc6);
     lcdString("20.2c");
 
-    setCursorPosition(LCD_BEG_LINE_3);
+    setCursorPositionHex(LCD_BEG_LINE_3);
     lcdString("Humidity: ");
 
-    setCursorPosition(0x9e);
+    setCursorPositionHex(0x9e);
     lcdString("75%");
 
-    setCursorPosition(LCD_BEG_LINE_4);
+    setCursorPositionHex(LCD_BEG_LINE_4);
     lcdString("Battery: ");
 
-    setCursorPosition(0xde);
+    setCursorPositionHex(0xde);
     // lcdString("         ");
-    // setCursorPosition(0xde);    
+    // setCursorPositionHex(0xde);    
     lcdString("1000%");
-    clearColumns(LCD_END_LINE_4,0xde);
+    clearColumnsHex(LCD_END_LINE_4,0xde);
 
-    setCursorPosition(0xde);
+    setCursorPositionHex(0xde);
     // lcdString("         ");
-    // setCursorPosition(0xde);    
+    // setCursorPositionHex(0xde);    
     lcdString("32%");
 
-    setCursorPosition(LCD_END_LINE_1-1);
-    lcdString("BB");
-    setCursorPosition(LCD_END_LINE_2-1);
-    lcdString("BB");
-    setCursorPosition(LCD_END_LINE_3-1);
-    lcdString("BB");
-    setCursorPosition(LCD_END_LINE_4-1);
-    lcdString("BB");
+    // clearColumnsRowCol(2,11,2,8);
+    // clearColumnsHex(LCD_END_LINE_2,LCD_BEG_LINE_2+7);
+    clearColumnsRowCol(2,10,7);
+    setCursorPositionRowCol(2,7);        
+    lcdString("1c");
+
+    clearLine(6);
 
     return 0;
 }
