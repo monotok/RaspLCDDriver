@@ -7,6 +7,6 @@
 extern int file_i2c;
 
 void initI2c(unsigned char I2C_ADDR);
-extern void error(char *msg);
+void error(char *msg);
 void readI2c();
 void writeByte(unsigned char address, unsigned char byte);
