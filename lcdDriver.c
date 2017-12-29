@@ -4,32 +4,13 @@
 ****************************************/
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include "i2cControl.h"
 #include "lcdDriver.h"
 
-// Define some device parameters
-#define I2C_ADDR 0x3f // I2C device address
-#define LCD_WIDTH 20   // Maximum characters per line
-#define LCD_ROWS 4 //The number of rows on the LCD
-
 // Define some device constants
 #define LCD_CHR 1 // Mode - Sending data
 #define LCD_CMD 0 // Mode - Sending command
-
-#define LCD_BEG_LINE_1 0x80 // LCD RAM address for the 1st line
-#define LCD_END_LINE_1 0x93 // LCD RAM address for the 1st line
-
-#define LCD_BEG_LINE_2 0xC0 // LCD RAM address for the 2nd line
-#define LCD_END_LINE_2 0xD3 // LCD RAM address for the 2nd line
-
-#define LCD_BEG_LINE_3 0x94 // LCD RAM address for the 3rd line
-#define LCD_END_LINE_3 0xA7 // LCD RAM address for the 3rd line
-
-#define LCD_BEG_LINE_4 0xD4 // LCD RAM address for the 4th line
-#define LCD_END_LINE_4 0xE7 // LCD RAM address for the 4th line
-
 
 //LCD Available Commands
 #define LCD_BLINK 0x0F
@@ -45,7 +26,6 @@
 #define LCD_RESET_CURSOR_POSITION 0x2
 #define LCD_SCROLL_1_CHAR_RIGHT_ALL_LINES 0x1E
 #define LCD_SCROLL_1_CHAR_LEFT_ALL_LINES 0x18
-
 
 #define LCD_BACKLIGHT 0x08  // On
 //#LCD_BACKLIGHT = 0x00  # Off
@@ -244,52 +224,4 @@ void clearLine(int lineNo)
     default:
       error("No such line to clear!");
   }
-}
-
-int main(int argc, char *argv[])
-{
-    //initialise i2c
-    initI2c(I2C_ADDR);
-    //Initialise display
-    lcdInit();
-
-    lcdSendCommand(LCD_BEG_LINE_1);
-    lcdString("Sensor ID:");
-
-    setCursorPositionHex(0x8b);
-    lcdString("Here");
-
-    setCursorPositionHex(LCD_BEG_LINE_2);
-    lcdString("Temp: ");
-
-    setCursorPositionHex(0xc6);
-    lcdString("20.2c");
-
-    setCursorPositionHex(LCD_BEG_LINE_3);
-    lcdString("Humidity: ");
-
-    setCursorPositionHex(0x9e);
-    lcdString("75%");
-
-    setCursorPositionHex(LCD_BEG_LINE_4);
-    lcdString("Battery: ");
-
-    setCursorPositionHex(0xde);
-    // lcdString("         ");
-    // setCursorPositionHex(0xde);    
-    lcdString("1000%");
-    clearColumnsHex(LCD_END_LINE_4,0xde);
-
-    setCursorPositionHex(0xde);
-    // lcdString("         ");
-    // setCursorPositionHex(0xde);    
-    lcdString("32%");
-
-    // clearColumnsRowCol(2,11,2,8);
-    // clearColumnsHex(LCD_END_LINE_2,LCD_BEG_LINE_2+7);
-    clearColumnsRowCol(2,10,7);
-    setCursorPositionRowCol(2,7);        
-    lcdString("1c");
-
-    return 0;
 }
