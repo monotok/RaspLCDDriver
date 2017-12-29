@@ -16,6 +16,7 @@
 // Define some device parameters
 #define I2C_ADDR 0x3f // I2C device address
 #define LCD_WIDTH 20   // Maximum characters per line
+#define LCD_ROWS 4 //The number of rows on the LCD
 
 // Define some device constants
 #define LCD_CHR 1 // Mode - Sending data
@@ -77,7 +78,6 @@ void moveCursorLeft() {  lcdSendCommand(LCD_MOVE_CURSOR_LEFT); }
 void resetCursorPosition() {  lcdSendCommand(LCD_RESET_CURSOR_POSITION); }
 void scroll1CharRightAllLines() {  lcdSendCommand(LCD_SCROLL_1_CHAR_RIGHT_ALL_LINES); }
 void scroll1CharLeftAllLines() {  lcdSendCommand(LCD_SCROLL_1_CHAR_LEFT_ALL_LINES); }
-void setCursorPositionHex(unsigned char position) {  lcdSendCommand(position); }
 
 
 
@@ -168,14 +168,44 @@ void lcdInit()
   usleep(E_DELAY);
 }
 
+void setCursorPositionHex(unsigned char position)
+{
+  if(position < LCD_BEG_LINE_1 || position > LCD_END_LINE_4)
+  {
+    char buffer[60];
+    sprintf(buffer, "Invalid hex position 0x%02x\nValid position is 0x%02x - 0x%02x", position, LCD_BEG_LINE_1, LCD_END_LINE_4);
+    error(buffer);
+  }
+  else
+  {
+    lcdSendCommand(position);    
+  }
+}
+
 void setCursorPositionRowCol(int row, int col) 
 {
-  lcdSendCommand(convertRowColtoHex(row, col));
+  if(row < 1 || row > LCD_ROWS)
+  {
+    char buffer[60];
+    sprintf(buffer, "Invalid position, no such row %i\nValid rows are 1 - %i", row, LCD_ROWS);
+    error(buffer);
+  }
+  else if(col < 0 || col > LCD_WIDTH-1)
+  {
+    char buffer[60];
+    sprintf(buffer, "Invalid position, no such col %i\nValid columns are 0 - %i", col, LCD_WIDTH-1);
+    error(buffer);
+  }
+  else
+  {
+    lcdSendCommand(convertRowColtoHex(row, col));
+  }
 }
 
 unsigned char convertRowColtoHex(int row, int col) 
 {
   unsigned char currentLineHex;
+  char buffer[70];  
   switch(row)
   {
     case 1:
@@ -191,10 +221,18 @@ unsigned char convertRowColtoHex(int row, int col)
       currentLineHex = LCD_BEG_LINE_4;
       break;
     default:
-      error("No such position!");
+      sprintf(buffer, "No such row number %i\nValid rows are 1 - %i", row, LCD_ROWS);
+      error(buffer);
   }
-
-  return (currentLineHex+(col));
+  if(col < LCD_WIDTH & col >= 0)
+  {
+    return (currentLineHex+(col));
+  }
+  else
+  {
+    sprintf(buffer, "No such col number %i\n.Valid cols are 0 -  %i", col, LCD_WIDTH-1);
+    error(buffer);
+  }
 }
 
 
@@ -214,11 +252,20 @@ void lcdString(char * message)
 void clearColumnsHex(unsigned char positionToClearTo, unsigned char positionToClearFrom)
 {
   int numberOfColsToClear = positionToClearTo - positionToClearFrom;
-  setCursorPositionHex(positionToClearFrom);
-
-  for(int i = 0; i <= numberOfColsToClear; i++)
+  if(numberOfColsToClear < LCD_WIDTH & numberOfColsToClear > 0)
   {
-    lcdString(" ");
+    setCursorPositionHex(positionToClearFrom);
+
+    for(int i = 0; i <= numberOfColsToClear; i++)
+    {
+      lcdString(" ");
+    }
+  }
+  else
+  {
+    char buffer[60];
+    sprintf(buffer, "Can only clear one line at a time. Exceeded LCD Width %i\n", LCD_WIDTH);
+    error(buffer);
   }
 }
 
@@ -301,8 +348,6 @@ int main(int argc, char *argv[])
     clearColumnsRowCol(2,10,7);
     setCursorPositionRowCol(2,7);        
     lcdString("1c");
-
-    clearLine(6);
 
     return 0;
 }
