@@ -6,12 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>				//Needed for I2C port
-#include <fcntl.h>				//Needed for I2C port
-#include <sys/ioctl.h>			//Needed for I2C port
-#include <linux/i2c-dev.h>		//Needed for I2C port
+#include "i2cControl.h"
 #include "lcdDriver.h"
-#include <errno.h>
 
 // Define some device parameters
 #define I2C_ADDR 0x3f // I2C device address
@@ -63,7 +59,6 @@
 #define E_DELAY 500 //micro Seconds
 
 
-int file_i2c;
 
 void blinkCursor() {  lcdSendCommand(LCD_BLINK); }
 void enableUnderlineCursor() {  lcdSendCommand(LCD_UNDERLINE_CURSOR); }
@@ -79,52 +74,6 @@ void resetCursorPosition() {  lcdSendCommand(LCD_RESET_CURSOR_POSITION); }
 void scroll1CharRightAllLines() {  lcdSendCommand(LCD_SCROLL_1_CHAR_RIGHT_ALL_LINES); }
 void scroll1CharLeftAllLines() {  lcdSendCommand(LCD_SCROLL_1_CHAR_LEFT_ALL_LINES); }
 
-
-
-void initI2c()
-{
-	//----- OPEN THE I2C BUS -----
-	char *filename = (char*)"/dev/i2c-1";
-	if ((file_i2c = open(filename, O_RDWR)) < 0)
-	{
-		error("Failed to open the i2c bus");
-		exit(1);
-	}
-
-	int addr = I2C_ADDR;
-	if (ioctl(file_i2c, I2C_SLAVE, addr) < 0)
-	{
-		error("Failed to acquire bus access and/or talk to slave.\n");
-		exit(1);
-	}
-}
-
-void readI2c()
-{
-	//----- READ BYTES -----
-  unsigned char buffer[60] = {0};
-	int length = 4;			//<<< Number of bytes to read
-	if (read(file_i2c, buffer, length) != length)		//read() returns the number of bytes actually read
-	{
-		error("readI2c Failed to read from the i2c bus.\n");
-	}
-	else
-	{
-		printf("Data read: %s\n", buffer);
-	}
-}
-
-void writeByte(unsigned char address, unsigned char byte)
-{
-	//----- WRITE BYTES -----
-  unsigned char buffer[60] = {0};
-	buffer[0] = byte;
-	int length = 1;			//<<< Number of bytes to write
-	if (write(file_i2c, buffer, length) != length)		//write() returns the number of bytes actually written
-	{
-		error("write_i2c Failed to write to the i2c bus.\n");
-	}
-}
 
 void lcdToggleEnable(unsigned char bits)
 {
@@ -297,17 +246,10 @@ void clearLine(int lineNo)
   }
 }
 
-void error(char *msg)
-{
-	fprintf(stderr, "%s: %s\n", msg, strerror(errno));
-	exit(1);
-}
-
-
 int main(int argc, char *argv[])
 {
     //initialise i2c
-    initI2c();
+    initI2c(I2C_ADDR);
     //Initialise display
     lcdInit();
 

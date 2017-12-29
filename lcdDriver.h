@@ -1,6 +1,3 @@
-void initI2c();
-void readI2c();
-void writeByte(unsigned char address, unsigned char byte);
 void lcdToggleEnable(unsigned char bits);
 void lcdByte(unsigned char bits, unsigned char mode);
 void lcdInit();
@@ -11,7 +8,6 @@ void setCursorPositionRowCol(int row, int col);
 void setCursorPositionHex(unsigned char position);
 void clearColumnsHex(unsigned char positionToClearTo, unsigned char positionToClearFrom);
 void clearColumnsRowCol(int row, int colToClearTo, int colToClearFrom);
-void error(char *msg);
 
 void blinkCursor();
 void enableUnderlineCursor();
