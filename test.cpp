@@ -7,7 +7,8 @@
 
 int main(int argc, char *argv[])
 {
-    LcdDriver lcd(lcdAdd);
+    I2cControl *i2c = new I2cControl(lcdAdd);
+    LcdDriver lcd(lcdAdd, i2c);
 
     lcd.lcdSendCommand(LCD_BEG_LINE_1);
     lcd.lcdString("Sensor ID:");

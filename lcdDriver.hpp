@@ -18,6 +18,8 @@
 class LcdDriver
 {
     private:
+        unsigned char I2C_ADDR;
+        I2cControl *i2c;
         void lcdToggleEnable(unsigned char bits);
         void lcdByte(unsigned char bits, unsigned char mode);
         unsigned char convertRowColtoHex(int row, int col);
@@ -26,7 +28,7 @@ class LcdDriver
         void error(const char *msg);        
         
     public:
-        LcdDriver(unsigned char I2C_ADDR);
+        LcdDriver(unsigned char I2C_ADDR, I2cControl *i2c);
         void lcdSendCommand(unsigned char command);
         void lcdString(const char * message);
         void setCursorPositionRowCol(int row, int col);

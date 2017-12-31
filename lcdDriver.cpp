@@ -40,9 +40,19 @@
 #define E_PULSE 500 //micro Seconds
 #define E_DELAY 500 //micro Seconds
 
-unsigned char I2C_ADDR = 0x3f;
-I2cControl i2c(I2C_ADDR);
 
+LcdDriver::LcdDriver(unsigned char lcdAdd, I2cControl *i2c)
+{
+  this->I2C_ADDR = lcdAdd;
+  this->i2c = i2c;
+  lcdByte(0x33,LCD_CMD); // 110011 Initialise
+  lcdByte(0x32,LCD_CMD); // 110010 Initialise
+  lcdSendCommand(LCD_UNDERLINE_CURSOR);
+  lcdSendCommand(LCD_CLEAR_DISPLAY_CLEAR_MEM);
+  lcdSendCommand(LCD_ENTRY_MODE);
+  lcdSendCommand(LCD_SET_4BIT_2LINE);
+  usleep(E_DELAY);
+}
 
 void LcdDriver::blinkCursor() {  lcdSendCommand(LCD_BLINK); }
 void LcdDriver::enableUnderlineCursor() {  lcdSendCommand(LCD_UNDERLINE_CURSOR); }
@@ -63,9 +73,9 @@ void LcdDriver::lcdToggleEnable(unsigned char bits)
 {
   // Toggle enable
   usleep(E_DELAY);
-  i2c.writeByte(I2C_ADDR, (bits | ENABLE));
+  i2c->writeByte(this->I2C_ADDR, (bits | ENABLE));
   usleep(E_PULSE);
-  i2c.writeByte(I2C_ADDR,(bits & ~ENABLE));
+  i2c->writeByte(this->I2C_ADDR,(bits & ~ENABLE));
   usleep(E_DELAY);
 }
 
@@ -88,24 +98,12 @@ void LcdDriver::lcdByte(unsigned char bits, unsigned char mode)
   bits_low = mode | ((bits<<4) & 0xF0) | LCD_BACKLIGHT;
 
   // High bits
-  i2c.writeByte(I2C_ADDR, bits_high);
+  i2c->writeByte(this->I2C_ADDR, bits_high);
   lcdToggleEnable(bits_high);
 
   // Low bits
-  i2c.writeByte(I2C_ADDR, bits_low);
+  i2c->writeByte(this->I2C_ADDR, bits_low);
   lcdToggleEnable(bits_low);
-}
-
-LcdDriver::LcdDriver(unsigned char lcdAdd)
-{
-  // I2C_ADDR = lcdAdd;
-  lcdByte(0x33,LCD_CMD); // 110011 Initialise
-  lcdByte(0x32,LCD_CMD); // 110010 Initialise
-  lcdSendCommand(LCD_UNDERLINE_CURSOR);
-  lcdSendCommand(LCD_CLEAR_DISPLAY_CLEAR_MEM);
-  lcdSendCommand(LCD_ENTRY_MODE);
-  lcdSendCommand(LCD_SET_4BIT_2LINE);
-  usleep(E_DELAY);
 }
 
 void LcdDriver::setCursorPositionHex(unsigned char position)
