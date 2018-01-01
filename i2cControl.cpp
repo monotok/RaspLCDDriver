@@ -7,33 +7,40 @@
 using namespace std;
 
 
-I2cControl::I2cControl(unsigned char I2C_ADDR)
+I2cControl::I2cControl(int i2cBusNumber)
 {
+	char i2cBus[10];
+    sprintf(i2cBus, "/dev/i2c-%i", i2cBusNumber);
 	//----- OPEN THE I2C BUS -----
-	char *filename = (char*)"/dev/i2c-1";
+	char *filename = (char*)i2cBus;
 	if ((this->file_i2c = open(filename, O_RDWR)) < 0)
 	{
 		error("Failed to open the i2c bus");
-		exit(1);
-	}
-
-	int addr = I2C_ADDR;
-	if (ioctl(this->file_i2c, I2C_SLAVE, addr) < 0)
-	{
-		error("Failed to acquire bus access and/or talk to slave.\n");
 		exit(1);
 	}
 }
 
 void I2cControl::writeByte(unsigned char address, unsigned char byte)
 {
-	//----- WRITE BYTES -----
-	unsigned char buffer[60] = {0};
-	buffer[0] = byte;
-	int length = 1;			//<<< Number of bytes to write
-	if (write(this->file_i2c, buffer, length) != length)		//write() returns the number of bytes actually written
+	if(address != this->I2C_ADDR)
 	{
-		error("write_i2c Failed to write to the i2c bus.\n");
+		this->I2C_ADDR = address;
+		if (ioctl(this->file_i2c, I2C_SLAVE, this->I2C_ADDR) < 0)
+		{
+			error("Failed to acquire bus access and/or talk to slave.\n");
+			exit(1);
+		}
+	}
+	else
+	{
+		//----- WRITE BYTES -----
+		unsigned char buffer[60] = {0};
+		buffer[0] = byte;
+		int length = 1;			//<<< Number of bytes to write
+		if (write(this->file_i2c, buffer, length) != length)		//write() returns the number of bytes actually written
+		{
+			error("write_i2c Failed to write to the i2c bus.\n");
+		}
 	}
 }
 
