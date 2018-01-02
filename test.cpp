@@ -1,5 +1,26 @@
+// Copyright 2018 Chris Hamer
+/*    This file is part of RaspLCDDriver.
+
+    RaspLCDDriver is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    RaspLCDDriver is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with RaspLCDDriver.  If not, see <http://www.gnu.org/licenses/>. 
+*/
+
 #include "i2cControl.hpp"
 #include "lcdDriver.hpp"
+
+//Only included to allow a sleep to show clearing display etc
+#include <chrono>
+#include <thread>
 
 #define lcdAdd 0x3f // I2C device address
 
@@ -12,16 +33,27 @@ int main(int argc, char *argv[])
     LcdDriver lcd(lcdAdd, i2c);
 
     lcd.lcdSendCommand(LCD_BEG_LINE_1);
-    lcd.lcdString("Sensor ID:");
-
-    lcd.setCursorPositionRowCol(1,10);
+    lcd.lcdString("SensorID:");
+    lcd.setCursorPositionRowCol(1,11);
     lcd.lcdString("Here");
 
     lcd.setCursorPositionRowCol(2,0);
     lcd.lcdString("Temp: ");
-
     lcd.setCursorPositionRowCol(2,8);
     lcd.lcdString("22.4 C");
+
+    lcd.setCursorPositionRowCol(3,0);
+    lcd.lcdString("Battery: ");
+    lcd.setCursorPositionRowCol(3,11);
+    lcd.lcdString("45%");
+
+    //Sleep for 4 seconds so we can observe the display
+    std::this_thread::sleep_for(std::chrono::milliseconds(4000));
+
+    //Change battery to the word humidity
+    lcd.clearColumnsRowCol(3,8,0);
+    lcd.setCursorPositionRowCol(3,0);
+    lcd.lcdString("Humidity:");
 
     return 0;
 }
