@@ -60,6 +60,8 @@ lcd.clearColumnsRowCol(3,8,0);
 lcd.setCursorPositionRowCol(3,0);
 lcd.lcdString("Humidity:");
 
+delete i2c;
+
 return0;
 }
 ```
