@@ -55,5 +55,7 @@ int main(int argc, char *argv[])
     lcd.setCursorPositionRowCol(3,0);
     lcd.lcdString("Humidity:");
 
+    delete i2c;
+
     return 0;
 }
