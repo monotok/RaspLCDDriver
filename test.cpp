@@ -29,7 +29,7 @@
 
 int main(int argc, char *argv[])
 {
-    I2cControl *i2c = new I2cControl(1);
+    I2cControl *i2c = new I2cControl(3); //Using software i2c
     LcdDriver lcd(lcdAdd, i2c);
 
     lcd.lcdSendCommand(LCD_BEG_LINE_1);
@@ -54,6 +54,21 @@ int main(int argc, char *argv[])
     lcd.clearColumnsRowCol(3,8,0);
     lcd.setCursorPositionRowCol(3,0);
     lcd.lcdString("Humidity:");
+
+    //Create and draw custom half battery symbol
+    uint8_t customChar[8] = {
+            0x0E,
+            0x11,
+            0x11,
+            0x11,
+            0x1F,
+            0x1F,
+            0x1F,
+            0x1F
+    };
+    lcd.createCustomChar(1, customChar);
+    lcd.setCursorPositionRowCol(4,8);
+    lcd.lcdSendCustomChar(1);
 
     delete i2c;
 

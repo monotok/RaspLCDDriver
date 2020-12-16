@@ -60,6 +60,22 @@ lcd.clearColumnsRowCol(3,8,0);
 lcd.setCursorPositionRowCol(3,0);
 lcd.lcdString("Humidity:");
 
+//Create and draw custom half battery symbol
+uint8_t customChar[8] = {
+        0x0E,
+        0x11,
+        0x11,
+        0x11,
+        0x1F,
+        0x1F,
+        0x1F,
+        0x1F
+};
+lcd.createCustomChar(1, customChar);
+//you might need to sleep for a short while before trying to display the custom char
+lcd.setCursorPositionRowCol(4,8);
+lcd.lcdSendCustomChar(1);
+
 delete i2c;
 
 return0;
