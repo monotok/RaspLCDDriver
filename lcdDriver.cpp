@@ -22,6 +22,7 @@
 #include "i2cControl.hpp"
 #include "lcdDriver.hpp"
 
+
 // Define some device constants
 #define LCD_CHR 1 // Mode - Sending data
 #define LCD_CMD 0 // Mode - Sending command
@@ -41,12 +42,19 @@
 #define LCD_SCROLL_1_CHAR_RIGHT_ALL_LINES 0x1E
 #define LCD_SCROLL_1_CHAR_LEFT_ALL_LINES 0x18
 
-#define LCD_BACKLIGHT 0x08  // On
-//#LCD_BACKLIGHT = 0x00  # Off
+#define LCD_BACKLIGHT_ON 0x08  // On
+#define LCD_BACKLIGHT_OFF 0x00  //Off
 
 #define ENABLE 0b00000100 // Enable bit
 #define READWRITE 0b00000010  // Read/Write bit
 #define REGISTERSELECT 0b00000001  // Register select bit
+#define LCD_SETCGRAMADDR 0x40 // Used for setting the custom chars
+
+// Predefined Custom Char Addresses - Upper 4 bits come first from datasheet
+#define LEFT_ARROW 0x7F
+#define RIGHT_ARROW 0x7E
+#define DEGREE_SYMBOL 0xDF
+#define FULL_CHAR 0xFF
 
 // Timing constants
 #define E_PULSE 500 //micro Seconds
@@ -55,15 +63,16 @@
 
 LcdDriver::LcdDriver(unsigned char lcdAdd, I2cControl *i2c)
 {
-  this->I2C_ADDR = lcdAdd;
-  this->i2c = i2c;
-  lcdByte(0x33,LCD_CMD); // 110011 Initialise
-  lcdByte(0x32,LCD_CMD); // 110010 Initialise
-  lcdSendCommand(LCD_UNDERLINE_CURSOR);
-  lcdSendCommand(LCD_CLEAR_DISPLAY_CLEAR_MEM);
-  lcdSendCommand(LCD_ENTRY_MODE);
-  lcdSendCommand(LCD_SET_4BIT_2LINE);
-  usleep(E_DELAY);
+    this->I2C_ADDR = lcdAdd;
+    this->i2c = i2c;
+    backlight = BACKLIGHT_ON;
+    lcdByte(0x33,LCD_CMD); // 110011 Initialise
+    lcdByte(0x32,LCD_CMD); // 110010 Initialise
+    lcdSendCommand(LCD_UNDERLINE_CURSOR);
+    lcdSendCommand(LCD_CLEAR_DISPLAY_CLEAR_MEM);
+    lcdSendCommand(LCD_ENTRY_MODE);
+    lcdSendCommand(LCD_SET_4BIT_2LINE);
+    usleep(E_DELAY);
 }
 
 void LcdDriver::blinkCursor() {  lcdSendCommand(LCD_BLINK); }
@@ -83,12 +92,12 @@ void LcdDriver::scroll1CharLeftAllLines() {  lcdSendCommand(LCD_SCROLL_1_CHAR_LE
 
 void LcdDriver::lcdToggleEnable(unsigned char bits)
 {
-  // Toggle enable
-  usleep(E_DELAY);
-  i2c->writeByte(this->I2C_ADDR, (bits | ENABLE));
-  usleep(E_PULSE);
-  i2c->writeByte(this->I2C_ADDR,(bits & ~ENABLE));
-  usleep(E_DELAY);
+    // Toggle enable
+    usleep(E_DELAY);
+    i2c->writeByte(this->I2C_ADDR, (bits | ENABLE));
+    usleep(E_PULSE);
+    i2c->writeByte(this->I2C_ADDR,(bits & ~ENABLE));
+    usleep(E_DELAY);
 }
 
 void LcdDriver::error(const char *msg)
@@ -101,148 +110,203 @@ void LcdDriver::error(const char *msg)
 void LcdDriver::lcdByte(unsigned char bits, unsigned char mode)
 {
     unsigned char bits_high, bits_low;
-  // Send byte to data pins
-  // bits = the data
-  // mode = 1 for data
-  //        0 for command
+    // Send byte to data pins
+    // bits = the data
+    // mode = 1 for data
+    //        0 for command
 
-  bits_high = mode | (bits & 0xF0) | LCD_BACKLIGHT;
-  bits_low = mode | ((bits<<4) & 0xF0) | LCD_BACKLIGHT;
+    if(backlight == BACKLIGHT_OFF)
+    {
+        bits_high = mode | (bits & 0xF0) | LCD_BACKLIGHT_OFF;
+        bits_low = mode | ((bits<<4) & 0xF0) | LCD_BACKLIGHT_OFF;
+    }
+    else
+    {
+        bits_high = mode | (bits & 0xF0) | LCD_BACKLIGHT_ON;
+        bits_low = mode | ((bits << 4) & 0xF0) | LCD_BACKLIGHT_ON;
+    }
 
-  // High bits
-  i2c->writeByte(this->I2C_ADDR, bits_high);
-  lcdToggleEnable(bits_high);
+    // High bits
+    i2c->writeByte(this->I2C_ADDR, bits_high);
+    lcdToggleEnable(bits_high);
 
-  // Low bits
-  i2c->writeByte(this->I2C_ADDR, bits_low);
-  lcdToggleEnable(bits_low);
+    // Low bits
+    i2c->writeByte(this->I2C_ADDR, bits_low);
+    lcdToggleEnable(bits_low);
 }
 
 void LcdDriver::setCursorPositionHex(unsigned char position)
 {
-  if(position < LCD_BEG_LINE_1 || position > LCD_END_LINE_4)
-  {
-    char buffer[60];
-    sprintf(buffer, "Invalid hex position 0x%02x\nValid position is 0x%02x - 0x%02x", position, LCD_BEG_LINE_1, LCD_END_LINE_4);
-    error(buffer);
-  }
-  else
-  {
-    lcdSendCommand(position);    
-  }
+    if(position < LCD_BEG_LINE_1 || position > LCD_END_LINE_4)
+    {
+        char buffer[60];
+        sprintf(buffer, "Invalid hex position 0x%02x\nValid position is 0x%02x - 0x%02x", position, LCD_BEG_LINE_1, LCD_END_LINE_4);
+        error(buffer);
+    }
+    else
+    {
+        lcdSendCommand(position);
+    }
 }
 
-void LcdDriver::setCursorPositionRowCol(int row, int col) 
+void LcdDriver::setCursorPositionRowCol(int row, int col)
 {
-  if(row < 1 || row > LCD_ROWS)
-  {
-    char buffer[60];
-    sprintf(buffer, "Invalid position, no such row %i\nValid rows are 1 - %i", row, LCD_ROWS);
-    error(buffer);
-  }
-  else if(col < 0 || col > LCD_WIDTH-1)
-  {
-    char buffer[60];
-    sprintf(buffer, "Invalid position, no such col %i\nValid columns are 0 - %i", col, LCD_WIDTH-1);
-    error(buffer);
-  }
-  else
-  {
-    lcdSendCommand(convertRowColtoHex(row, col));
-  }
+    if(row < 1 || row > LCD_ROWS)
+    {
+        char buffer[60];
+        sprintf(buffer, "Invalid position, no such row %i\nValid rows are 1 - %i", row, LCD_ROWS);
+        error(buffer);
+    }
+    else if(col < 0 || col > LCD_WIDTH-1)
+    {
+        char buffer[60];
+        sprintf(buffer, "Invalid position, no such col %i\nValid columns are 0 - %i", col, LCD_WIDTH-1);
+        error(buffer);
+    }
+    else
+    {
+        lcdSendCommand(convertRowColtoHex(row, col));
+    }
 }
 
-unsigned char LcdDriver::convertRowColtoHex(int row, int col) 
+unsigned char LcdDriver::convertRowColtoHex(int row, int col)
 {
-  unsigned char currentLineHex;
-  char buffer[70];  
-  switch(row)
-  {
-    case 1:
-      currentLineHex = LCD_BEG_LINE_1;
-      break;
-    case 2:
-      currentLineHex = LCD_BEG_LINE_2;
-      break;
-    case 3:
-      currentLineHex = LCD_BEG_LINE_3;
-      break;
-    case 4:
-      currentLineHex = LCD_BEG_LINE_4;
-      break;
-    default:
-      sprintf(buffer, "No such row number %i\nValid rows are 1 - %i", row, LCD_ROWS);
-      error(buffer);
-  }
-  if(col < LCD_WIDTH & col >= 0)
-  {
-    return (currentLineHex+(col));
-  }
-  else
-  {
-    sprintf(buffer, "No such col number %i\n.Valid cols are 0 -  %i", col, LCD_WIDTH-1);
-    error(buffer);
-  }
+    unsigned char currentLineHex;
+    char buffer[70];
+    switch(row)
+    {
+        case 1:
+            currentLineHex = LCD_BEG_LINE_1;
+            break;
+        case 2:
+            currentLineHex = LCD_BEG_LINE_2;
+            break;
+        case 3:
+            currentLineHex = LCD_BEG_LINE_3;
+            break;
+        case 4:
+            currentLineHex = LCD_BEG_LINE_4;
+            break;
+        default:
+            sprintf(buffer, "No such row number %i\nValid rows are 1 - %i", row, LCD_ROWS);
+            error(buffer);
+    }
+    if(col < LCD_WIDTH & col >= 0)
+    {
+        return (currentLineHex+(col));
+    }
+    else
+    {
+        sprintf(buffer, "No such col number %i\n.Valid cols are 0 -  %i", col, LCD_WIDTH-1);
+        error(buffer);
+    }
 }
 
 
 void LcdDriver::lcdSendCommand(unsigned char command)
 {
-  lcdByte(command, LCD_CMD);
+    lcdByte(command, LCD_CMD);
+}
+
+void LcdDriver::lcdSendCustomChar(char cgramAddress)
+{
+    lcdSendChar(cgramAddress);
+}
+
+void LcdDriver::lcdSendChar(char singleChar)
+{
+    lcdByte(singleChar, LCD_CHR);
 }
 
 void LcdDriver::lcdString(const char * message)
 {
-  for(int i = 0; i<strlen(message); i++)
-  {
-    lcdByte(message[i],LCD_CHR);
-  }
+    for(int i = 0; i<strlen(message); i++)
+    {
+        lcdByte(message[i],LCD_CHR);
+    }
 }
 
 void LcdDriver::clearColumnsHex(unsigned char positionToClearTo, unsigned char positionToClearFrom)
 {
-  int numberOfColsToClear = positionToClearTo - positionToClearFrom;
-  if(numberOfColsToClear < LCD_WIDTH & numberOfColsToClear > 0)
-  {
-    setCursorPositionHex(positionToClearFrom);
-
-    for(int i = 0; i <= numberOfColsToClear; i++)
+    int numberOfColsToClear = positionToClearTo - positionToClearFrom;
+    if(numberOfColsToClear < LCD_WIDTH & numberOfColsToClear > 0)
     {
-      lcdString(" ");
+        setCursorPositionHex(positionToClearFrom);
+
+        for(int i = 0; i <= numberOfColsToClear; i++)
+        {
+            lcdString(" ");
+        }
     }
-  }
-  else
-  {
-    char buffer[60];
-    sprintf(buffer, "Can only clear one line at a time. Exceeded LCD Width %i\n", LCD_WIDTH);
-    error(buffer);
-  }
+    else
+    {
+        char buffer[60];
+        sprintf(buffer, "Can only clear one line at a time. Exceeded LCD Width %i\n", LCD_WIDTH);
+        error(buffer);
+    }
 }
 
 void LcdDriver::clearColumnsRowCol(int row, int colToClearTo, int colToClearFrom)
 {
-  unsigned char positionToClearTo = convertRowColtoHex(row, colToClearTo);
-  unsigned char positionToClearFrom = convertRowColtoHex(row, colToClearFrom);
-  clearColumnsHex(positionToClearTo, positionToClearFrom);
+    unsigned char positionToClearTo = convertRowColtoHex(row, colToClearTo);
+    unsigned char positionToClearFrom = convertRowColtoHex(row, colToClearFrom);
+    clearColumnsHex(positionToClearTo, positionToClearFrom);
 }
 
 void LcdDriver::clearLine(int lineNo)
 {
-  switch(lineNo)
-  {
-    case 1:
-      LcdDriver::clearColumnsHex(LCD_END_LINE_1,LCD_BEG_LINE_1);  
-      break;
-    case 2:
-      clearColumnsHex(LCD_END_LINE_2,LCD_BEG_LINE_2);  
-      break;
-    case 3:
-      clearColumnsHex(LCD_END_LINE_3,LCD_BEG_LINE_3);  
-      break;
-    case 4:
-      clearColumnsHex(LCD_END_LINE_3,LCD_BEG_LINE_3);  
-      break;
-    default:
-      error("No such line to clear!");
-  }
+    switch(lineNo)
+    {
+        case 1:
+            LcdDriver::clearColumnsHex(LCD_END_LINE_1,LCD_BEG_LINE_1);
+            break;
+        case 2:
+            clearColumnsHex(LCD_END_LINE_2,LCD_BEG_LINE_2);
+            break;
+        case 3:
+            clearColumnsHex(LCD_END_LINE_3,LCD_BEG_LINE_3);
+            break;
+        case 4:
+            clearColumnsHex(LCD_END_LINE_3,LCD_BEG_LINE_3);
+            break;
+        default:
+            error("No such line to clear!");
+    }
+}
+
+void LcdDriver::changeBacklight()
+{
+    if(backlight == BACKLIGHT_ON)
+        backlight = BACKLIGHT_OFF;
+    else if(backlight == BACKLIGHT_OFF)
+        backlight = BACKLIGHT_ON;
+}
+
+void LcdDriver::createCustomChar(unsigned char location, unsigned char charMap[])
+{
+    location &= 0x7; // we only have 8 locations 0-7. location = location & 0x7
+    lcdSendCommand(LCD_SETCGRAMADDR | (location << 3));
+    for (int i=0; i<8; i++) {
+        lcdByte(charMap[i], 0b00000001);
+    }
+}
+
+void LcdDriver::drawLeftArrow()
+{
+    lcdSendChar(LEFT_ARROW);
+}
+
+void LcdDriver::drawRightArrow()
+{
+    lcdSendChar(RIGHT_ARROW);
+}
+
+void LcdDriver::drawDegreeSymbol()
+{
+    lcdSendChar(DEGREE_SYMBOL);
+}
+
+void LcdDriver::drawFullChar()
+{
+    lcdSendChar(FULL_CHAR);
 }
